@@ -6,6 +6,7 @@ import numpy as np
 import time as ti
 import os
 import json
+from pathlib import Path
 
 ORDER = 100
 if __name__ == "__main__":
@@ -41,6 +42,7 @@ if __name__ == "__main__":
         "computation-time(s)": total_time,
     }
 
+    os.makedirs("jobs_results", exist_ok=True)
     with open(f"jobs_results/{slurm_job_id}.json", "w", encoding="utf-8") as file:
         json.dump(data, file, indent=4)
         

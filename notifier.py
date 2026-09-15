@@ -2,7 +2,7 @@ import json
 import os
 import sys
 import time
-
+from pathlib import Path
 import requests
 
 from parser import get_notifier_parser
@@ -72,6 +72,7 @@ def save_fallback(slurm_job_id: str, payload: dict, error: str) -> None:
 if __name__ == "__main__":
     parser = get_notifier_parser()
     args = parser.parse_args(sys.argv[1:])
+    Path("jobs_failed_notify").mkdir( exist_ok=True)
 
     if os.environ.get("SLURM_JOB_ID") is None:
         raise KeyError("SLURM_JOB_ID IS REQUIRED")
