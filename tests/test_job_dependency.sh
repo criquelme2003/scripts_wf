@@ -71,8 +71,8 @@ fi
 NEW_JOB_ID="$NEW_JOB_SUBMIT"
 echo "new_job job id = $NEW_JOB_ID"
 
-echo "=== Paso 2: lanzar notifier.sh con --dependency=afterok:$NEW_JOB_ID ==="
-NOTIFIER_SUBMIT=$(sbatch --parsable --dependency="afterok:${NEW_JOB_ID}" notifier.sh \
+echo "=== Paso 2: lanzar notifier.sh con --dependency=afterany:$NEW_JOB_ID ==="
+NOTIFIER_SUBMIT=$(sbatch --parsable --dependency="afterany:${NEW_JOB_ID}" notifier.sh \
     --job-id "$NEW_JOB_ID" \
     --auth-token "$AUTH_TOKEN" \
     --callback-url "http://127.0.0.1:${CALLBACK_PORT}/callback" 2>&1)
