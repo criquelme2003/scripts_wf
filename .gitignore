@@ -1,0 +1,10 @@
+.conda_env
+__pycache__
+.venv
+tasks/
+SPEC.md
+jobs_results/
+jobs_failed_notify/
+logs.*
+logs/
+test2.py
