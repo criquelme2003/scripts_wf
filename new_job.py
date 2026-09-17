@@ -17,7 +17,6 @@ if __name__ == "__main__":
     thr = args.thr
     c = args.conectividad
     seed = args.seed
-    authToken = args.authToken
 
     slurm_job_id = os.environ.get("SLURM_JOB_ID")
     if slurm_job_id is None:
@@ -37,7 +36,6 @@ if __name__ == "__main__":
     total_time = end-start
 
     data = {
-        "authToken": authToken,
         "effective-order": eff_order,
         "computation-time(s)": total_time,
     }

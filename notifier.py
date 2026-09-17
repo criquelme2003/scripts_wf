@@ -23,7 +23,6 @@ def build_payload(slurm_job_id: str) -> dict:
     try:
         with open(f"jobs_results/{slurm_job_id}.json", "r", encoding="utf-8") as file:
             payload = json.load(file)
-            payload.pop("authToken", None)
             payload["status"] = "success"
             payload["logs"] = logs
     except (FileNotFoundError, IOError, json.JSONDecodeError):

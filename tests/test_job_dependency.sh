@@ -63,7 +63,7 @@ SERVER_PID=$!
 sleep 1
 
 echo "=== Paso 1: lanzar new_job.sh vía sbatch ==="
-NEW_JOB_SUBMIT=$(sbatch --parsable new_job.sh --nodos 20 --thr 0.5 --conectividad 4 --seed 0 --auth-token "$AUTH_TOKEN" 2>&1)
+NEW_JOB_SUBMIT=$(sbatch --parsable new_job.sh --nodos 20 --thr 0.5 --conectividad 4 --seed 0 2>&1)
 if ! [[ "$NEW_JOB_SUBMIT" =~ ^[0-9]+$ ]]; then
     fail "sbatch de new_job.sh no devolvió un job id válido: $NEW_JOB_SUBMIT"
     exit 1

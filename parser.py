@@ -33,14 +33,6 @@ def get_newjob_parser() -> argparse.ArgumentParser :
                     help="Definir semilla para la construcción de la matriz",
     )
     
-    parser.add_argument(
-                        "--auth-token",
-                        type=str,
-                        required=True,
-                        dest="authToken",
-                        help="Entregar token para validación posterior",
-    )
-    
     return parser
 
 
