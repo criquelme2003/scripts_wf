@@ -4,5 +4,17 @@ channels:
   - https://repo.anaconda.com/pkgs/r
 dependencies:
   - python=3.10
-  - numpy
+  # forgeffects exige tensorflow==2.13, que exige numpy<=1.24.3.
+  # forgethreads (new_job / sweep_job) verificado con numpy 1.24.3.
+  - numpy=1.24.3
   - requests
+  - pip
+  - pip:
+      - forgeffects==0.2.5
+      - tensorflow==2.13.0
+      - tensorflow-probability==0.20.0
+      # cuDNN 8.6 para TF 2.13 (el sistema trae cuDNN 9). El resto de CUDA 11.8
+      # se toma de /usr/local/cuda-11.8/lib64 (ver fe_job.sh / tests/check_env.sh).
+      - nvidia-cudnn-cu11==8.6.0.163
+      - pandas==2.3.3
+      - pytest==9.1.1
