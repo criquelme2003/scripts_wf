@@ -1,3 +1,4 @@
+import glob
 import json
 import os
 import sys
@@ -10,22 +11,44 @@ from parser import get_notifier_parser
 MAX_ATTEMPTS = 3
 RETRY_DELAY_SECONDS = 2
 DEFAULT_HTTP_TIMEOUT = 30
+DEFAULT_MAX_LOG_BYTES = 200000
+
+
+def find_log(slurm_job_id: str) -> str | None:
+    # El log es logs/<job-name>.<id> para cualquier --job-name (new_job, fe_job, sweep_job).
+    matches = sorted(glob.glob(f"logs/*.{glob.escape(slurm_job_id)}"))
+    return matches[0] if matches else None
+
+
+def read_log(slurm_job_id: str) -> str | None:
+    path = find_log(slurm_job_id)
+    if path is None:
+        return None
+    max_bytes = int(os.environ.get("NOTIFIER_MAX_LOG_BYTES", DEFAULT_MAX_LOG_BYTES))
+    try:
+        with open(path, "rb") as log_file:
+            log_file.seek(0, os.SEEK_END)
+            log_file.seek(max(0, log_file.tell() - max_bytes))
+            return log_file.read().decode("utf-8", errors="ignore")
+    except OSError:
+        return None
 
 
 def build_payload(slurm_job_id: str) -> dict:
-    logs = None
-    try:
-        with open(f"logs/forgethreads-new-job.{slurm_job_id}", "r") as log_file:
-            logs = log_file.read()
-    except (FileNotFoundError, IOError):
-        logs = None
+    logs = read_log(slurm_job_id)
 
     try:
         with open(f"jobs_results/{slurm_job_id}.json", "r", encoding="utf-8") as file:
-            payload = json.load(file)
-            payload["status"] = "success"
-            payload["logs"] = logs
-    except (FileNotFoundError, IOError, json.JSONDecodeError):
+            summary = json.load(file)
+    except (OSError, json.JSONDecodeError):
+        summary = None
+
+    if isinstance(summary, dict):
+        payload = summary
+        # "running" en el resumen indica que el job murió antes de terminar.
+        payload["status"] = "partial" if summary.get("state") == "running" else "success"
+        payload["logs"] = logs
+    else:
         payload = {"status": "error", "logs": logs}
 
     payload["job_id"] = slurm_job_id
