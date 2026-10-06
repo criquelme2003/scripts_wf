@@ -7,10 +7,8 @@
 
 SCRIPT_DIR="${SLURM_SUBMIT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 
-# TF 2.13 (forgeffects) necesita cuDNN 8 (pip) y CUDA 11.8 (sistema); el sistema trae cuDNN 9.
-CUDNN_LIB="$SCRIPT_DIR/.conda_env/lib/python3.10/site-packages/nvidia/cudnn/lib"
-CUBLAS_LIB="$SCRIPT_DIR/.conda_env/lib/python3.10/site-packages/nvidia/cublas/lib"
-export LD_LIBRARY_PATH="$CUDNN_LIB:$CUBLAS_LIB:/usr/local/cuda-11.8/lib64${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+# CUDA 11.8 + cuDNN 8.6 para TF 2.13, desde .conda_env (ver tf_env.sh).
+source "$SCRIPT_DIR/tf_env.sh"
 
 # exec: python reemplaza al shell para recibir directamente las señales de SLURM.
 exec "$SCRIPT_DIR/.conda_env/bin/python" "$SCRIPT_DIR/fe_job.py" "$@"

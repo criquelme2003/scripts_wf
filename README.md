@@ -129,8 +129,8 @@ jobs_inputs/<request_id>/
 - Si la entrada es inválida, el job termina con código 1 y el log lista **todos** los problemas
   (el notifier reporta `error` con ese texto en `logs`).
 - Si no hay efectos de orden 2 con ese `thr`, el resultado es válido: `orders: []`.
-- `fe_job.sh` agrega a `LD_LIBRARY_PATH` el cuDNN 8.6 que instala pip y `/usr/local/cuda-11.8/lib64`,
-  porque TF 2.13 no funciona con el cuDNN 9 del sistema.
+- `fe_job.sh` carga `tf_env.sh`, que pone en `LD_LIBRARY_PATH` las librerías CUDA 11.8 + cuDNN 8.6
+  instaladas por pip en `.conda_env` (ver Entorno).
 
 **Salida:**
 
@@ -199,7 +199,15 @@ Todo corre con `./.conda_env/bin/python` (Python 3.10, que exige la extensión n
 
 - `forgeffects 0.2.5` exige `tensorflow==2.13`, y TF 2.13 exige `numpy<=1.24.3`. Por eso el entorno
   usa **numpy 1.24.3**; se verificó que `forgethreads` da los mismos resultados que con numpy 2.2.5.
-- `tensorflow-probability 0.20.0`, `nvidia-cudnn-cu11 8.6.0.163`, `pandas`, `pytest`.
+- `tensorflow-probability 0.20.0`, `pandas`, `pytest`.
+- **CUDA para TensorFlow:** TF 2.13 está compilado contra CUDA 11.8 + cuDNN 8.6. Esas librerías
+  (`nvidia-*-cu11`: cudart, cublas, cudnn, cufft, curand, cusolver, cusparse) se instalan por pip
+  dentro de `.conda_env`, y `tf_env.sh` las pone primero en `LD_LIBRARY_PATH`. Por eso **el nodo solo
+  necesita un driver NVIDIA ≥ 520**, con cualquier toolkit CUDA instalado (11.8, 12.4, 13.x...).
+  Única excepción: cuDNN carga `libnvrtc.so` sin versión, y esa sale del toolkit del sistema (hoy
+  13.2). `tests/check_env.sh` lista de dónde se cargó cada librería y falla si alguna otra viene de
+  fuera de `.conda_env`.
+- `forgethreads` lleva CUDA enlazado dentro del `.so`: solo depende del driver.
 - Los nodos tienen 1 GPU RTX 4090 y SLURM **no** gestiona la GPU (no hay GRES): los `.sh` no usan
   `--gres`. Tampoco usan `--mem` (el nodo declara `RealMemory=1`).
 
@@ -219,7 +227,7 @@ bash deploy_node.sh
 3. Crea `logs/`, `jobs_results/`, `jobs_inputs/` y `jobs_failed_notify/`. Sin `logs/`, los jobs
    fallan sin dejar log.
 4. Lanza `sbatch --wait tests/check_env.sh` y termina en `DEPLOY OK` si TensorFlow hace un `matmul`
-   en la GPU.
+   y una convolución en la GPU con las librerías CUDA de `.conda_env`.
 
 Las versiones están escritas en `environment.yml` **y** en `deploy_node.sh`: si cambia una, hay que
 cambiar la otra.

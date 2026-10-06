@@ -24,6 +24,12 @@ else
         "tensorflow==2.13.0" \
         "tensorflow-probability==0.20.0" \
         "nvidia-cudnn-cu11==8.6.0.163" \
+        "nvidia-cublas-cu11==11.11.3.6" \
+        "nvidia-cuda-runtime-cu11==11.8.89" \
+        "nvidia-cufft-cu11==10.9.0.58" \
+        "nvidia-curand-cu11==10.3.0.86" \
+        "nvidia-cusolver-cu11==11.4.1.48" \
+        "nvidia-cusparse-cu11==11.7.5.86" \
         "pandas==2.3.3" \
         "pytest==9.1.1"
 fi
@@ -38,7 +44,7 @@ echo "=== 4/4 Verificación vía SLURM (tests/check_env.sh) ==="
 JOB_ID=$(sbatch --wait --parsable tests/check_env.sh) || true
 LOG="logs/check_env.${JOB_ID}"
 if [ -n "$JOB_ID" ] && grep -q "CHECK_ENV OK" "$LOG" 2>/dev/null; then
-    grep -E "numpy|GPUs|matmul" "$LOG"
+    grep -E "numpy|GPUs|matmul|conv2d|sistema" "$LOG"
     echo "DEPLOY OK (job $JOB_ID)"
 else
     echo "DEPLOY FALLIDO: revisar $LOG" >&2
