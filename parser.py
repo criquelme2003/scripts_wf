@@ -81,6 +81,60 @@ def get_newjob_parser() -> argparse.ArgumentParser :
     return parser
 
 
+def comma_list(item_type):
+    def parse(value: str) -> list:
+        items = [item.strip() for item in value.split(",")]
+        if not all(items):
+            raise argparse.ArgumentTypeError(f"lista separada por comas inválida: {value!r}")
+        return [item_type(item) for item in items]
+    return parse
+
+
+def get_sweep_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="forgethreads sweep parser")
+    parser.add_argument(
+        "--ns",
+        type=comma_list(positive_int),
+        required=True,
+        dest="ns",
+        help="Lista de N separada por comas (enteros positivos; los impares se omiten)",
+    )
+
+    parser.add_argument(
+        "--cs",
+        type=comma_list(positive_float),
+        required=True,
+        dest="cs",
+        help="Lista de conectividades c separada por comas (números positivos)",
+    )
+
+    parser.add_argument(
+        "--reps",
+        type=positive_int,
+        required=True,
+        dest="reps",
+        help="Repeticiones por combinación (c, N)",
+    )
+
+    parser.add_argument(
+        "--thr",
+        type=positive_float,
+        required=True,
+        dest="thr",
+        help="Threshold para filtrado de efectos olvidados (número positivo)",
+    )
+
+    parser.add_argument(
+        "--seed-base",
+        type=int,
+        default=0,
+        dest="seed_base",
+        help="Base de semillas: seed = seed_base * 10**9 + rep * 1000 + N (0 reproduce test2.py)",
+    )
+
+    return parser
+
+
 def get_notifier_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="forgethreads module notifier parser")
     parser.add_argument(
