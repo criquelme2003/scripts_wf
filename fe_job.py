@@ -1,6 +1,7 @@
 import json
 import os
 import sys
+import time as ti
 from pathlib import Path
 
 import numpy as np
@@ -8,6 +9,8 @@ import numpy as np
 from parser import get_fe_parser
 
 MATRICES = ("CC", "CE", "EE")
+# FE lanza ValueError con este prefijo cuando no hay efectos de orden 2: es un resultado válido.
+NO_EFFECTS_PREFIX = "No effects found"
 
 
 class InputError(Exception):
@@ -126,6 +129,49 @@ def load_and_validate(input_dir) -> dict:
     }
 
 
+def run_fe(data: dict, job_id: str, forgeffects, set_seed) -> dict:
+    """Ejecuta FE, escribe un CSV por orden con caminos y, al final, el resumen para el notifier."""
+    if data["seed"] is not None:
+        set_seed(data["seed"])
+
+    start = ti.time()
+    try:
+        results = forgeffects.FE(
+            data["CC"], data["CE"], data["EE"],
+            causes=data["causes"], effects=data["effects"],
+            THR=data["thr"], maxorder=data["maxorder"], rep=data["reps"], device="GPU",
+        )
+    except ValueError as e:
+        if not str(e).startswith(NO_EFFECTS_PREFIX):
+            raise
+        print(f"[fe_job] {e} -> sin caminos", flush=True)
+        results = []
+    total_time = ti.time() - start
+
+    out_dir = Path("jobs_results") / job_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+    rows_per_order = {}
+    for i, df in enumerate(results):
+        order = i + 2  # resultado[i] es el orden i + 2 (verificado en T2)
+        if len(df) == 0:
+            continue
+        df.to_csv(out_dir / f"paths_order_{order}.csv", index=False)
+        rows_per_order[str(order)] = len(df)
+        print(f"[fe_job] orden {order}: {len(df)} caminos", flush=True)
+
+    summary = {
+        "kind": "fe",
+        "k": int(data["CE"].shape[0]),
+        "seed": data["seed"],
+        "orders": [int(order) for order in rows_per_order],
+        "rows_per_order": rows_per_order,
+        "computation-time(s)": total_time,
+    }
+    with open(Path("jobs_results") / f"{job_id}.json", "w", encoding="utf-8") as file:
+        json.dump(summary, file, indent=4)
+    return summary
+
+
 def main(argv=None) -> None:
     args = get_fe_parser().parse_args(sys.argv[1:] if argv is None else argv)
 
@@ -141,6 +187,12 @@ def main(argv=None) -> None:
 
     print(f"[fe_job] entrada válida: k={data['CE'].shape[0]} m={data['CE'].shape[1]} n={data['CE'].shape[2]}",
           flush=True)
+
+    # Import diferido: TensorFlow tarda en cargar y no hace falta si la entrada es inválida.
+    import tensorflow as tf
+    import forgeffects
+
+    run_fe(data, slurm_job_id, forgeffects, tf.random.set_seed)
 
 
 if __name__ == "__main__":
