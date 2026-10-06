@@ -148,6 +148,32 @@ def test_skipped_combinations_go_to_summary(fake_forgethreads):
     assert [(s["c"], s["n"]) for s in summary["skipped_combinations"]] == [(50.0, 20)]
 
 
+def test_sigterm_keeps_finished_combinations_and_running_state(fake_forgethreads):
+    import os
+    import signal
+
+    def maxmin(m1, *_):
+        if m1.shape == (1, 40, 40):  # SLURM avisa del corte durante la segunda combinación
+            os.kill(os.getpid(), signal.SIGTERM)
+        return None, None, 3
+
+    fake_forgethreads.maxmin.side_effect = maxmin
+    previous = signal.getsignal(signal.SIGTERM)
+    try:
+        sweep_job.install_sigterm_handler()
+        with pytest.raises(SystemExit) as exc:
+            sweep_job.run_sweep(params(ns=[20, 40], cs=[1.0], reps=2), JOB_ID, fake_forgethreads,
+                                free_memory=lambda: None)
+    finally:
+        signal.signal(signal.SIGTERM, previous)
+
+    assert exc.value.code == 143
+    assert read_csv()[1:] == [["1.0", "20", "0", "3"], ["1.0", "20", "1", "3"]]
+    summary = read_summary()
+    assert summary["state"] == "running"
+    assert summary["completed_combinations"] == 1 and summary["failures"] == []
+
+
 def test_free_memory_called_once_per_repetition(fake_forgethreads, fake_cupy):
     free = sweep_job.get_free_memory()
     sweep_job.run_sweep(params(), JOB_ID, fake_forgethreads, free_memory=free)

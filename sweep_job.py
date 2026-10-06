@@ -1,6 +1,7 @@
 import csv
 import json
 import os
+import signal
 import sys
 import time as ti
 
@@ -11,6 +12,19 @@ from parser import get_sweep_parser
 
 ORDER = 100
 CSV_HEADER = ["c", "n", "repeticion", "orden_efectivo"]
+SIGTERM_EXIT_CODE = 128 + signal.SIGTERM
+
+
+class Terminated(BaseException):
+    # BaseException para que el except Exception de cada repetición no lo trate como un fallo.
+    pass
+
+
+def install_sigterm_handler() -> None:
+    """SLURM manda SIGTERM antes de matar el job por --time: se corta el barrido ordenadamente."""
+    def handler(signum, frame):
+        raise Terminated()
+    signal.signal(signal.SIGTERM, handler)
 
 
 def seed_for(seed_base: int, rep: int, n: int) -> int:
@@ -76,6 +90,23 @@ def run_sweep(params: dict, job_id: str, ft, free_memory) -> dict:
     os.makedirs("jobs_results", exist_ok=True)
     write_summary(summary_path, summary)
 
+    try:
+        _sweep(valid, params, csv_path, summary_path, summary, start, ft, free_memory)
+    except Terminated:
+        # El CSV ya tiene las combinaciones terminadas; el resumen queda en "running" -> partial.
+        summary["computation-time(s)"] = ti.time() - start
+        write_summary(summary_path, summary)
+        print(f"SIGTERM: barrido cortado tras {summary['completed_combinations']}"
+              f"/{summary['total_combinations']} combinaciones", file=sys.stderr, flush=True)
+        raise SystemExit(SIGTERM_EXIT_CODE)
+
+    summary["state"] = "completed"
+    summary["computation-time(s)"] = ti.time() - start
+    write_summary(summary_path, summary)
+    return summary
+
+
+def _sweep(valid, params, csv_path, summary_path, summary, start, ft, free_memory) -> None:
     warmup(ft, params["thr"])
 
     with open(csv_path, "w", newline="") as file:
@@ -107,11 +138,6 @@ def run_sweep(params: dict, job_id: str, ft, free_memory) -> dict:
             summary["computation-time(s)"] = ti.time() - start
             write_summary(summary_path, summary)
 
-    summary["state"] = "completed"
-    summary["computation-time(s)"] = ti.time() - start
-    write_summary(summary_path, summary)
-    return summary
-
 
 if __name__ == "__main__":
     args = get_sweep_parser().parse_args(sys.argv[1:])
@@ -122,6 +148,7 @@ if __name__ == "__main__":
 
     import forgethreads as ft
 
+    install_sigterm_handler()
     run_sweep(
         {"ns": args.ns, "cs": args.cs, "reps": args.reps, "thr": args.thr, "seed_base": args.seed_base},
         slurm_job_id,
