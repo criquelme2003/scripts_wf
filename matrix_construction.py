@@ -1,5 +1,30 @@
 import numpy as np
 
+def check_admissible(n_N, n_M, c):
+    """
+    Returns None if (n_N, n_M, c) is admissible for
+    sparse_supercritical_block_matrix, or the rejection reason otherwise.
+
+    With n_N = n_M = N/2 this is equivalent to c <= N/2 - 1.
+    """
+    Ntot = n_N + n_M
+
+    if Ntot <= 1:
+        return "Ntot must be greater than 1."
+    if n_M <= 1:
+        return "n_M must be greater than 1."
+
+    p_N = c / (Ntot - 1)
+    p_M = c / (n_M - 1)
+
+    if p_N > 1 or p_M > 1:
+        return (
+            f"Inadmissible Bernoulli parameter: "
+            f"p_N={p_N:.4f}, p_M={p_M:.4f}, "
+            f"for n_N={n_N}, n_M={n_M}, c={c}."
+        )
+    return None
+
 def sparse_supercritical_block_matrix(n_N, n_M, c, seed=None):
     """
     Binary reflexive one-way block Bernoulli support matrix.
@@ -21,22 +46,13 @@ def sparse_supercritical_block_matrix(n_N, n_M, c, seed=None):
     """
     rng = np.random.default_rng(seed)
 
+    reason = check_admissible(n_N, n_M, c)
+    if reason is not None:
+        raise ValueError(reason)
+
     Ntot = n_N + n_M
-
-    if Ntot <= 1:
-        raise ValueError("Ntot must be greater than 1.")
-    if n_M <= 1:
-        raise ValueError("n_M must be greater than 1.")
-
     p_N = c / (Ntot - 1)
     p_M = c / (n_M - 1)
-
-    if p_N > 1 or p_M > 1:
-        raise ValueError(
-            f"Inadmissible Bernoulli parameter: "
-            f"p_N={p_N:.4f}, p_M={p_M:.4f}, "
-            f"for n_N={n_N}, n_M={n_M}, c={c}."
-        )
 
     E = np.zeros((Ntot, Ntot), dtype=float)
 
