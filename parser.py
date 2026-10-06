@@ -135,6 +135,19 @@ def get_sweep_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def get_fe_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="forgeffects FE parser")
+    parser.add_argument(
+        "--input-dir",
+        type=str,
+        required=True,
+        dest="input_dir",
+        help="Directorio con CC.npy, CE.npy, EE.npy y meta.json (p. ej. jobs_inputs/<request_id>)",
+    )
+
+    return parser
+
+
 def get_notifier_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="forgethreads module notifier parser")
     parser.add_argument(
