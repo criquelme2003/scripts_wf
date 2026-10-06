@@ -4,7 +4,9 @@ __pycache__
 tasks/
 SPEC.md
 jobs_results/
+jobs_inputs/
 jobs_failed_notify/
 logs.*
 logs/
 test2.py
+.claude/
