@@ -68,6 +68,7 @@ if __name__ == "__main__":
     install_fakes()
     import forgethreads as ft
     import sweep_job
+    from parser import positive_number
 
     workdir = Path(tempfile.mkdtemp(prefix="compare_test2_"))
     os.chdir(workdir)
@@ -75,7 +76,7 @@ if __name__ == "__main__":
     test2_csv = workdir / "test2.csv"
     run_test2(test2_path, test2_csv)
 
-    params = {"ns": NS, "cs": [float(c) for c in CS], "reps": REPEATS, "thr": THR, "seed_base": 0}
+    params = {"ns": NS, "cs": [positive_number(str(c)) for c in CS], "reps": REPEATS, "thr": THR, "seed_base": 0}
     sweep_job.run_sweep(params, "compare", ft, free_memory=lambda: None)
 
     expected, got = read_rows(test2_csv), read_rows(workdir / "jobs_results" / "compare.csv")

@@ -32,9 +32,11 @@ def read_summary():
 
 def test_parser_parses_lists_and_types():
     args = get_sweep_parser().parse_args(
-        ["--ns", "100,250", "--cs", "0.125,1,2.5", "--reps", "20", "--thr", "0.5", "--seed-base", "3"])
+        ["--ns", "100,250", "--cs", "0.125,1,2.5,4.0", "--reps", "20", "--thr", "0.5", "--seed-base", "3"])
     assert args.ns == [100, 250]
-    assert args.cs == [0.125, 1.0, 2.5] and all(isinstance(c, float) for c in args.cs)
+    # c entero queda como int (como lo manda el backend: 2, no 2.0); el resto, float.
+    assert args.cs == [0.125, 1, 2.5, 4]
+    assert [type(c) for c in args.cs] == [float, int, float, int]
     assert (args.reps, args.thr, args.seed_base) == (20, 0.5, 3)
 
 
@@ -92,6 +94,32 @@ def test_run_sweep_writes_csv_and_completed_summary(fake_forgethreads):
     assert summary["completed_combinations"] == summary["total_combinations"] == 4
     assert summary["skipped_combinations"] == [] and summary["failures"] == []
     assert summary["computation-time(s)"] >= 0
+
+
+def test_integer_c_is_written_without_decimal(fake_forgethreads):
+    sweep_job.run_sweep(params(ns=[20], cs=[2, 2.5], reps=1), JOB_ID, fake_forgethreads, free_memory=lambda: None)
+
+    assert [r[0] for r in read_csv()[1:]] == ["2", "2.5"]
+    with open(f"jobs_results/{JOB_ID}.json", encoding="utf-8") as f:
+        assert '"cs": [\n            2,\n            2.5\n        ]' in f.read()
+
+
+def test_csv_exists_with_header_if_warmup_fails(fake_forgethreads):
+    fake_forgethreads.maxmin.side_effect = RuntimeError("CUDA init")
+    with pytest.raises(RuntimeError):
+        sweep_job.run_sweep(params(), JOB_ID, fake_forgethreads, free_memory=lambda: None)
+
+    assert read_csv() == [["c", "n", "repeticion", "orden_efectivo"]]
+    assert read_summary()["state"] == "running"
+
+
+def test_combination_times_has_one_entry_per_finished_combination(fake_forgethreads):
+    sweep_job.run_sweep(params(ns=[20, 40], cs=[1, 50], reps=1), JOB_ID, fake_forgethreads,
+                        free_memory=lambda: None)
+
+    times = read_summary()["combination_times"]
+    assert [(t["c"], t["n"]) for t in times] == [(1, 20), (1, 40)]
+    assert all(isinstance(t["seconds"], float) and t["seconds"] >= 0 for t in times)
 
 
 def test_run_sweep_feeds_maxmin_like_test2(fake_forgethreads):

@@ -81,6 +81,12 @@ def get_newjob_parser() -> argparse.ArgumentParser :
     return parser
 
 
+def positive_number(value: str) -> int | float:
+    # Los enteros quedan como int para escribirlos como los manda el backend (2, no 2.0).
+    fvalue = positive_float(value)
+    return int(fvalue) if fvalue.is_integer() else fvalue
+
+
 def comma_list(item_type):
     def parse(value: str) -> list:
         items = [item.strip() for item in value.split(",")]
@@ -102,7 +108,7 @@ def get_sweep_parser() -> argparse.ArgumentParser:
 
     parser.add_argument(
         "--cs",
-        type=comma_list(positive_float),
+        type=comma_list(positive_number),
         required=True,
         dest="cs",
         help="Lista de conectividades c separada por comas (números positivos)",

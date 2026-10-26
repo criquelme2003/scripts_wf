@@ -85,6 +85,7 @@ def run_sweep(params: dict, job_id: str, ft, free_memory) -> dict:
         "completed_combinations": 0,
         "total_combinations": len(valid),
         "failures": [],
+        "combination_times": [],
         "computation-time(s)": 0.0,
     }
     os.makedirs("jobs_results", exist_ok=True)
@@ -107,14 +108,16 @@ def run_sweep(params: dict, job_id: str, ft, free_memory) -> dict:
 
 
 def _sweep(valid, params, csv_path, summary_path, summary, start, ft, free_memory) -> None:
-    warmup(ft, params["thr"])
-
+    # El CSV existe desde el inicio: si el job muere en el calentamiento, el backend descarga solo el encabezado.
     with open(csv_path, "w", newline="") as file:
         writer = csv.writer(file)
         writer.writerow(CSV_HEADER)
         file.flush()
 
+        warmup(ft, params["thr"])
+
         for c, n in valid:
+            combination_start = ti.time()
             orders = []
             for rep in range(params["reps"]):
                 free_memory()
@@ -135,6 +138,7 @@ def _sweep(valid, params, csv_path, summary_path, summary, start, ft, free_memor
                 print(f"c={c}  n={n}  mean={np.mean(values):.2f}  min={min(values)}  max={max(values)}", flush=True)
 
             summary["completed_combinations"] += 1
+            summary["combination_times"].append({"c": c, "n": n, "seconds": ti.time() - combination_start})
             summary["computation-time(s)"] = ti.time() - start
             write_summary(summary_path, summary)
 
