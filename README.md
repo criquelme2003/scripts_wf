@@ -67,7 +67,7 @@ sbatch --time=<HH:MM:SS> sweep_job.sh --ns 100,250,500 --cs 0.125,0.25,1,2.5 \
 | Argumento | Descripción |
 |---|---|
 | `--ns` | Lista de N separada por comas (enteros positivos; los impares se omiten) |
-| `--cs` | Lista de c separada por comas (float > 0) |
+| `--cs` | Lista de c separada por comas (número > 0). Los enteros se escriben sin decimal: `2` y `2.0` dan `2` |
 | `--reps` | Repeticiones por combinación |
 | `--thr` | Threshold del `maxmin` |
 | `--seed-base` | Opcional, por defecto 0. `seed = seed_base·10⁹ + rep·1000 + N`; con 0 reproduce `test2.py` |
@@ -76,8 +76,9 @@ sbatch --time=<HH:MM:SS> sweep_job.sh --ns 100,250,500 --cs 0.125,0.25,1,2.5 \
 - Las combinaciones con `N` impar o `c > N/2 − 1` se omiten (misma regla que `matrix_construction`,
   función `check_admissible`) y se listan en `skipped_combinations`.
 - Si una repetición falla, se registra en `failures` y el barrido continúa.
-- Al terminar cada combinación se escriben sus filas en el CSV (con `flush`) y se actualiza el resumen.
-  Si el job se corta, lo ya escrito queda disponible.
+- El CSV se crea con su encabezado al inicio, antes del calentamiento de la GPU. Al terminar cada
+  combinación se escriben sus filas (con `flush`) y se actualiza el resumen. Si el job se corta, lo ya
+  escrito queda disponible.
 - **Corte por `--time`:** SLURM manda SIGTERM. El job deja el resumen con `state: running` y sale
   con código 143; el notifier lo reporta como **`partial`**. Por eso `sweep_job.sh` lanza python con
   `exec`: sin él, el SIGTERM le llegaría al `bash` y no a python.
@@ -85,18 +86,22 @@ sbatch --time=<HH:MM:SS> sweep_job.sh --ns 100,250,500 --cs 0.125,0.25,1,2.5 \
 **Salida:**
 
 ```
-jobs_results/<JOBID>.csv     c,n,repeticion,orden_efectivo   (c float; el resto int)
+jobs_results/<JOBID>.csv     c,n,repeticion,orden_efectivo   (c como en --cs: 2, 2.5; el resto int)
 jobs_results/<JOBID>.json
 ```
 
 ```json
 {"kind": "sweep", "state": "running | completed",
- "params": {"ns": [100, 250], "cs": [0.125, 1.0], "reps": 20, "thr": 0.5, "seed_base": 0},
- "skipped_combinations": [{"n": 100, "c": 50.0, "reason": "Inadmissible Bernoulli parameter: ..."}],
+ "params": {"ns": [100, 250], "cs": [0.125, 1], "reps": 20, "thr": 0.5, "seed_base": 0},
+ "skipped_combinations": [{"n": 100, "c": 50, "reason": "Inadmissible Bernoulli parameter: ..."}],
  "completed_combinations": 37, "total_combinations": 40,
  "failures": [{"c": 2.5, "n": 100, "rep": 3, "error": "RuntimeError: ..."}],
+ "combination_times": [{"c": 0.125, "n": 100, "seconds": 20.3}, ...],
  "computation-time(s)": 812.4}
 ```
+
+`combination_times` tiene una entrada por combinación terminada, con su duración en segundos (sin
+el calentamiento). Sirve para calibrar la estimación de duración del backend.
 
 **Log:** `logs/sweep_job.<JOBID>`
 
@@ -122,7 +127,7 @@ jobs_inputs/<request_id>/
 | `causes`, `effects` | Listas de strings de largo m y n, sin etiquetas repetidas entre ambas |
 | `thr` | Número en [0,1] |
 | `maxorder` | Entero ≥ 2 |
-| `reps` | Entero ≥ 1: réplicas de `forgeffects` (su parámetro `rep`) |
+| `reps` | Entero en [1, 10000]: réplicas de `forgeffects` (su parámetro `rep`) |
 | `seed` | Opcional (entero). Con k ≥ 2, `FE` es aleatorio; con `seed` el resultado es reproducible |
 
 - `k` es el número de expertos: 1 para el cálculo por experto, ≥ 2 para el agregado.
