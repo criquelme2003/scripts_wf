@@ -115,6 +115,7 @@ def test_non_numeric_array(tmp_path):
     ({"maxorder": 1}, "maxorder"),
     ({"maxorder": 2.5}, "maxorder"),
     ({"reps": 0}, "reps"),
+    ({"reps": 10001}, "reps"),
     ({"seed": "x"}, "seed"),
 ])
 def test_invalid_meta_fields(tmp_path, meta, expected):

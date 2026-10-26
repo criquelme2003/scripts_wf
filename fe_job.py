@@ -9,6 +9,7 @@ import numpy as np
 from parser import get_fe_parser
 
 MATRICES = ("CC", "CE", "EE")
+MAX_REPS = 10000  # tope del formulario del backend
 # FE lanza ValueError con este prefijo cuando no hay efectos de orden 2: es un resultado válido.
 NO_EFFECTS_PREFIX = "No effects found"
 
@@ -84,8 +85,8 @@ def _check_meta(meta: dict, m, n, errors: list) -> None:
         errors.append(f"meta.json: 'thr' debe ser un número en [0,1], recibido {meta['thr']!r}")
     if "maxorder" in meta and not (_is_int(meta["maxorder"]) and meta["maxorder"] >= 2):
         errors.append(f"meta.json: 'maxorder' debe ser un entero >= 2, recibido {meta['maxorder']!r}")
-    if "reps" in meta and not (_is_int(meta["reps"]) and meta["reps"] >= 1):
-        errors.append(f"meta.json: 'reps' debe ser un entero >= 1, recibido {meta['reps']!r}")
+    if "reps" in meta and not (_is_int(meta["reps"]) and 1 <= meta["reps"] <= MAX_REPS):
+        errors.append(f"meta.json: 'reps' debe ser un entero en [1, {MAX_REPS}], recibido {meta['reps']!r}")
     if meta.get("seed") is not None and not _is_int(meta["seed"]):
         errors.append(f"meta.json: 'seed' debe ser un entero, recibido {meta['seed']!r}")
 

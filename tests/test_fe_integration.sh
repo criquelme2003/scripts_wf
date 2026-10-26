@@ -80,9 +80,9 @@ submit() {
     echo "[$name] fe_job=${FE_ID[$name]} notifier=${NT_ID[$name]}"
 }
 
-# check <nombre> <estado fe_job> <status callback> <texto en logs> <órdenes esperados ("" = ninguno)>
+# check <nombre> <estado fe_job> <status callback> <texto en logs> <órdenes esperados ("" = ninguno)> <reps>
 check() {
-    local name="$1" fe_state="$2" status="$3" log_text="$4" orders="$5"
+    local name="$1" fe_state="$2" status="$3" log_text="$4" orders="$5" reps="$6"
     local fid="${FE_ID[$name]}"
     echo "=== Escenario $name (fe_job $fid) ==="
     [ "$(job_state "$fid")" = "$fe_state" ] && pass "[$name] fe_job terminó $fe_state" \
@@ -93,10 +93,11 @@ check() {
     local received
     received=$(callback_for "$fid")
     [ -n "$received" ] || { fail "[$name] no llegó el callback"; return; }
-    "$PY" - "$received" "$status" "$log_text" "$orders" "$fid" <<'EOF' || FAILED=1
+    "$PY" - "$received" "$status" "$log_text" "$orders" "$fid" "$reps" <<'EOF' || FAILED=1
 import json, sys
 from pathlib import Path
-record, status, log_text, orders, fid = json.loads(sys.argv[1]), *sys.argv[2:]
+import pandas as pd
+record, status, log_text, orders, fid, reps = json.loads(sys.argv[1]), *sys.argv[2:]
 body = record["body"]
 expected = [int(o) for o in orders.split(",")] if orders else []
 checks = [(body["status"] == status, f"status {body['status']} (esperado {status})"),
@@ -108,8 +109,14 @@ if status == "success":
         lines = len(csv.read_text().splitlines()) - 1 if csv.exists() else -1
         checks.append((lines == body["rows_per_order"][str(o)],
                        f"{csv} con {lines} filas = rows_per_order[{o}]"))
+        if csv.exists():
+            df = pd.read_csv(csv)
+            columns = ["From", *[f"Through{i}" for i in range(1, o)], "To", "Count", "Mean", "SD"]
+            checks.append((list(df.columns) == columns, f"orden {o}: columnas {list(df.columns)}"))
+            if "Count" in df:
+                checks.append((df["Count"].max() <= int(reps), f"orden {o}: max(Count)={df['Count'].max()} <= reps={reps}"))
 for ok, msg in checks:
-    print(("PASS: " if ok else "FAIL: ") + f"[{sys.argv[5]}] " + msg)
+    print(("PASS: " if ok else "FAIL: ") + f"[{fid}] " + msg)
 sys.exit(0 if all(ok for ok, _ in checks) else 1)
 EOF
 }
@@ -133,10 +140,10 @@ for i in $(seq 1 300); do
     sleep 1
 done
 
-check k1 COMPLETED success "orden 2" "2"
-check k10 COMPLETED success "orden 3" "2,3"
-check broken FAILED error "k (expertos) inconsistente" ""
-check noeffects COMPLETED success "sin caminos" ""
+check k1 COMPLETED success "orden 2" "2" 1
+check k10 COMPLETED success "orden 3" "2,3" 100
+check broken FAILED error "k (expertos) inconsistente" "" 1
+check noeffects COMPLETED success "sin caminos" "" 1
 
 echo ""
 if [ "$FAILED" = "0" ]; then
