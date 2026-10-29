@@ -9,7 +9,7 @@ import numpy as np
 from parser import get_fe_parser
 
 MATRICES = ("CC", "CE", "EE")
-MAX_REPS = 10000  # tope del formulario del backend
+MAX_REPS = 17000  # tope del formulario del backend
 # FE lanza ValueError con este prefijo cuando no hay efectos de orden 2: es un resultado válido.
 NO_EFFECTS_PREFIX = "No effects found"
 
